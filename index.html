@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Rekomendasi Gizi</title>
+</head>
+
+<body>
+    <style>
+        /* RESET DASAR */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f9;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* HEADER */
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.8em;
+        }
+
+        /* CONTAINER UTAMA (2 Kolom) */
+        .container {
+            display: flex;
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+            gap: 30px;
+            /* Jarak antar kolom */
+        }
+
+        /* CARD STYLE */
+        .card {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            flex: 1;
+            /* Membuat kedua kolom memiliki lebar yang sama */
+        }
+
+        .input-section h2,
+        .result-section h2 {
+            color: #4CAF50;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* FORM STYLES */
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        /* RESULT STYLES */
+        .result-box {
+            background-color: #e8f5e9;
+            /* Warna hijau muda */
+            border: 1px solid #c8e6c9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .result-box strong {
+            color: #388e3c;
+        }
+
+        .result-heading {
+            color: #2e7d32;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        #macro-list,
+        #food-recommendation {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        #macro-list li,
+        #food-recommendation li {
+            padding: 8px 0;
+            border-bottom: 1px dotted #eee;
+        }
+
+        #macro-list li:last-child,
+        #food-recommendation li:last-child {
+            border-bottom: none;
+        }
+
+        .food-list {
+            font-style: normal;
+            color: #606060;
+        }
+
+        /* RESPONSIF: Jika layar kecil (misal: HP), buat kolom jadi satu baris */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                margin: 20px 10px;
+            }
+        }
+    </style>
+
+    <header>
+        <h1>Sistem Rekomendasi Makanan Bergizi</h1>
+    </header>
+
+    <div class="container">
+
+        <section class="card input-section">
+            <h2>Masukkan Data Diri</h2>
+            <form id="nutrition-form">
+                <div class="input-group">
+                    <label for="tinggi">Tinggi (cm):</label>
+                    <input type="number" id="tinggi" required>
+                </div>
+                <div class="input-group">
+                    <label for="berat">Berat (kg):</label>
+                    <input type="number" id="berat" required>
+                </div>
+                <div class="input-group">
+                    <label for="usia">Usia:</label>
+                    <input type="number" id="usia" required>
+                </div>
+                <div class="input-group">
+                    <label for="jk">Jenis Kelamin:</label>
+                    <select id="jk" required>
+                        <option value="pria">Pria</option>
+                        <option value="wanita">Wanita</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="aktivitas">Level Aktivitas:</label>
+                    <select id="aktivitas" required>
+                        <option value="sangat_ringan">Sangat Ringan (1.200)</option>
+                        <option value="ringan">Ringan (1.375)</option>
+                        <option value="sedang">Sedang (1.55)</option>
+                        <option value="berat">Berat (1.725)</option>
+                        <option value="sangat_berat">Sangat Berat (2.000)</option>
+                    </select>
+                </div>
+                <button type="submit">Hitung Kebutuhan Gizi</button>
+            </form>
+        </section>
+
+        <section class="card result-section">
+            <h2>Hasil Perhitungan & Rekomendasi 📊</h2>
+
+            <div id="imt-result" class="result-box">
+                <p><strong>IMT & Status:</strong> <span id="imt-value">N/A</span></p>
+                <p><strong>Berat Ideal (BBI):</strong> <span id="bbi-range">N/A</span></p>
+                <p><strong>Saran:</strong> <span id="imt-saran">...</span></p>
+                <p><strong>TDEE (Kalori Harian):</strong> <span id="tdee-value">N/A</span> kkal</p>
+            </div>
+
+            <h3 class="result-heading">Makro Nutrien Harian</h3>
+            <ul id="macro-list">
+                <li>Karbohidrat: <span id="karbo-gram">N/A</span>g (<span id="karbo-kkal">N/A</span> kkal)</li>
+                <li>Protein: <span id="protein-gram">N/A</span>g (<span id="protein-kkal">N/A</span> kkal)</li>
+                <li>Lemak Sehat: <span id="lemak-gram">N/A</span>g (<span id="lemak-kkal">N/A</span> kkal)</li>
+            </ul>
+
+            <h3 class="result-heading">Rekomendasi Makanan</h3>
+            <ul id="food-recommendation">
+                <li>Protein: <span class="food-list">...</span></li>
+                <li>Karbohidrat: <span class="food-list">...</span></li>
+                <li>Lemak Sehat: <span class="food-list">...</span></li>
+                <li>Sayuran: <span class="food-list">...</span></li>
+                <li>Buah: <span class="food-list">...</span></li>
+            </ul>
+        </section>
+
+    </div>
+
+    <script>
+        const ACTIVITY_FACTORS = {
+            sangat_ringan: 1.2,
+            ringan: 1.375,
+            sedang: 1.55,
+            berat: 1.725,
+            sangat_berat: 2.0
+        };
+
+        const CALORIE_PER_GRAM = {
+            karbohidrat: 4,
+            protein: 4,
+            lemak: 9
+        };
+
+        const MACRO_RATIO = {
+            karbohidrat: 0.50,
+            protein: 0.30,
+            lemak: 0.20
+        };
+
+        const FOOD_OPTIONS = {
+            protein: ["Dada ayam tanpa kulit", "Ikan (Salmon, Tuna)", "Telur", "Tempe/Tahu", "Yogurt Yunani"],
+            karbohidrat: ["Nasi merah/cokelat", "Oatmeal", "Ubi jalar", "Roti gandum utuh", "Quinoa"],
+            lemak_sehat: ["Alpukat", "Minyak Zaitun (Extra Virgin)", "Kacang-kacangan (Almond, Kenari)", "Biji Chia/Flaxseed", "Ikan Berlemak"],
+            sayuran: ["Brokoli", "Bayam", "Wortel", "Tomat", "Kale", "Paprika"],
+            buah: ["Apel", "Pisang", "Jeruk", "Berry (Stroberi, Blueberry)", "Mangga", "Pir"]
+        };
+
+        let currentSeed;
+        function setSeed(s) {
+            currentSeed = s % 2147483647;
+            if (currentSeed <= 0) currentSeed += 2147483646;
+        }
+
+        function seededRandom() {
+            currentSeed = (currentSeed * 16807) % 2147483647;
+            return (currentSeed - 1) / 2147483646;
+        }
+
+        function getRandomItem(list) {
+            const randomIndex = Math.floor(seededRandom() * list.length);
+            return list[randomIndex];
+        }
+
+        function generateSeededRecommendations() {
+            const recommendations = {};
+            for (const category in FOOD_OPTIONS) {
+                const list = FOOD_OPTIONS[category];
+                let selected = [];
+
+                while (selected.length < 3 && selected.length < list.length) {
+                    const item = getRandomItem(list);
+                    if (!selected.includes(item)) {
+                        selected.push(item);
+                    }
+                }
+                recommendations[category] = selected.join(', ');
+            }
+            return recommendations;
+        }
+
+        document.getElementById('nutrition-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const tinggi = parseFloat(document.getElementById('tinggi').value); // cm
+            const berat = parseFloat(document.getElementById('berat').value); // kg
+            const usia = parseInt(document.getElementById('usia').value);
+            const jk = document.getElementById('jk').value;
+            const aktivitasKey = document.getElementById('aktivitas').value;
+            const activityFactor = ACTIVITY_FACTORS[aktivitasKey];
+
+            if (isNaN(tinggi) || isNaN(berat) || isNaN(usia) || !activityFactor) {
+                alert("Mohon masukkan data yang valid untuk semua kolom.");
+                return;
+            }
+
+            const inputString = `${tinggi}-${berat}-${usia}-${jk}-${aktivitasKey}`;
+            let uniqueSeed = 0;
+            for (let i = 0; i < inputString.length; i++) {
+                uniqueSeed = (uniqueSeed * 31 + inputString.charCodeAt(i)) | 0;
+            }
+
+            setSeed(uniqueSeed);
+            const foodRecommendations = generateSeededRecommendations();
+
+            const tinggiMeter = tinggi / 100;
+
+            const bbiMin = 18.5 * (tinggiMeter * tinggiMeter);
+            const bbiMax = 24.9 * (tinggiMeter * tinggiMeter);
+            const bbiTarget = 22 * (tinggiMeter * tinggiMeter);
+
+            const imt = berat / (tinggiMeter * tinggiMeter);
+            const imtStatus = getIMTStatus(imt);
+
+            let bmr;
+            if (jk === 'pria') {
+                bmr = 66.5 + (13.75 * berat) + (5.003 * tinggi) - (6.75 * usia);
+            } else {
+                bmr = 655.1 + (9.563 * berat) + (1.850 * tinggi) - (4.676 * usia);
+            }
+            const tdee = bmr * activityFactor;
+
+            const karboKkal = tdee * MACRO_RATIO.karbohidrat;
+            const proteinKkal = tdee * MACRO_RATIO.protein;
+            const lemakKkal = tdee * MACRO_RATIO.lemak;
+
+            const karboGram = karboKkal / CALORIE_PER_GRAM.karbohidrat;
+            const proteinGram = proteinKkal / CALORIE_PER_GRAM.protein;
+            const lemakGram = lemakKkal / CALORIE_PER_GRAM.lemak;
+
+            displayResults(
+                imt, imtStatus, tdee,
+                karboGram, karboKkal, proteinGram, proteinKkal, lemakGram, lemakKkal,
+                foodRecommendations,
+                bbiMin, bbiMax, bbiTarget
+            );
+        });
+
+        function getIMTStatus(imt) {
+            if (imt < 18.5) {
+                return { status: "Kurus (Underweight)", saran: "Perlu meningkatkan asupan kalori dan nutrisi untuk mencapai berat badan ideal." };
+            } else if (imt >= 18.5 && imt <= 24.9) {
+                return { status: "Normal (Healthy Weight)", saran: "Pertahankan pola makan dan aktivitas fisik saat ini. Fokus pada makanan seimbang." };
+            } else if (imt >= 25.0 && imt <= 29.9) {
+                return { status: "Kelebihan Berat Badan (Overweight)", saran: "Perlu mengurangi asupan kalori harian dan meningkatkan aktivitas fisik secara bertahap." };
+            } else {
+                return { status: "Obesitas (Obese)", saran: "Sangat disarankan untuk berkonsultasi dengan ahli gizi atau dokter untuk program penurunan berat badan yang aman dan terstruktur." };
+            }
+        }
+
+        function displayResults(imt, imtStatus, tdee, karboGram, karboKkal, proteinGram, proteinKkal, lemakGram, lemakKkal, recommendations, bbiMin, bbiMax, bbiTarget) {
+
+            document.getElementById('imt-value').textContent = `${imt.toFixed(2)} (${imtStatus.status})`;
+
+            document.getElementById('bbi-range').textContent =
+                `${bbiMin.toFixed(1)} kg - ${bbiMax.toFixed(1)} kg (Target ≈ ${bbiTarget.toFixed(1)} kg)`;
+
+            document.getElementById('imt-saran').textContent = imtStatus.saran;
+            document.getElementById('tdee-value').textContent = tdee.toFixed(0);
+
+            document.getElementById('karbo-gram').textContent = karboGram.toFixed(0);
+            document.getElementById('karbo-kkal').textContent = karboKkal.toFixed(0);
+            document.getElementById('protein-gram').textContent = proteinGram.toFixed(0);
+            document.getElementById('protein-kkal').textContent = proteinKkal.toFixed(0);
+            document.getElementById('lemak-gram').textContent = lemakGram.toFixed(0);
+            document.getElementById('lemak-kkal').textContent = lemakKkal.toFixed(0);
+
+            document.querySelector('#food-recommendation li:nth-child(1) .food-list').textContent = recommendations.protein;
+            document.querySelector('#food-recommendation li:nth-child(2) .food-list').textContent = recommendations.karbohidrat;
+            document.querySelector('#food-recommendation li:nth-child(3) .food-list').textContent = recommendations.lemak_sehat;
+            document.querySelector('#food-recommendation li:nth-child(4) .food-list').textContent = recommendations.sayuran;
+            document.querySelector('#food-recommendation li:nth-child(5) .food-list').textContent = recommendations.buah;
+        }
+
+    </script>
+</body>
+
+</html>

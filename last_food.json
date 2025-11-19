@@ -1,0 +1,27 @@
+{
+  "Protein": [
+    "Dada Ayam Rebus",
+    "Ikan Tuna",
+    "Kacang Hijau"
+  ],
+  "Karbohidrat": [
+    "Nasi Merah",
+    "Kentang Rebus",
+    "Mie Jagung"
+  ],
+  "Lemak": [
+    "Kacang Almond",
+    "Alpukat",
+    "Biji Chia"
+  ],
+  "Sayur": [
+    "Tomat",
+    "Wortel",
+    "Buncis"
+  ],
+  "Buah": [
+    "Mangga",
+    "Jeruk",
+    "Semangka"
+  ]
+}  
