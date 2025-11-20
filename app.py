@@ -3,32 +3,21 @@ import json
 import os
 import random
 import pandas as pd 
-# Import Flask dan send_file untuk melayani HTML dari root
+import hashlib # Tambahkan import ini untuk membuat seed yang konsisten
 from flask import Flask, request, jsonify, send_file 
 
 # --- INISIALISASI FLASK ---
-# Inisialisasi tanpa folder template/static eksplisit
 app = Flask(__name__) 
 
 # --- KONSTANTA DAN INISIALISASI DATABASE ---
-MAKANAN_DATABASE = {}
-EXCEL_FILE_NAME = "makanan_database.xlsx"
-
-try:
-    df = pd.read_excel(EXCEL_FILE_NAME)
-    for index, row in df.iterrows():
-        nama_makanan = row['Nama Makanan']
-        MAKANAN_DATABASE[nama_makanan] = {
-            "jenis": row['jenis'],
-            "karbo": row['karbo'],
-            "protein": row['protein'],
-            "kalori": row['kalori']
-        }
-    print(f"Data makanan berhasil dimuat dari {EXCEL_FILE_NAME}. Total {len(MAKANAN_DATABASE)} item.")
-except FileNotFoundError:
-    print(f"Gagal memuat file Excel. File '{EXCEL_FILE_NAME}' tidak ditemukan. Program berjalan dengan database kosong.")
-except Exception as e:
-    print(f"Terjadi kesalahan saat memproses Excel: {e}")
+# Data Makanan statis diambil dari JavaScript untuk memastikan konsistensi dan deterministik
+FOOD_OPTIONS = {
+    "Protein": ["Dada ayam tanpa kulit", "Ikan (Salmon, Tuna)", "Telur", "Tempe/Tahu", "Yogurt Yunani"],
+    "Karbohidrat": ["Nasi merah/cokelat", "Oatmeal", "Ubi jalar", "Roti gandum utuh", "Quinoa"],
+    "Lemak Sehat": ["Alpukat", "Minyak Zaitun (Extra Virgin)", "Kacang-kacangan (Almond, Kenari)", "Biji Chia/Flaxseed", "Ikan Berlemak"],
+    "Sayuran": ["Brokoli", "Bayam", "Wortel", "Tomat", "Kale", "Paprika"],
+    "Buah": ["Apel", "Pisang", "Jeruk", "Berry (Stroberi, Blueberry)", "Mangga", "Pir"]
+}
 
 # Faktor Aktivitas yang sudah diperluas
 FAKTOR_AKTIVITAS = {
@@ -39,8 +28,6 @@ FAKTOR_AKTIVITAS = {
     "sangat_berat": 2.0 
 }
 
-# ... (Semua konstanta dan fungsi perhitungan gizi lainnya) ...
-# (Saya memangkas fungsi di sini untuk menghemat ruang, asumsikan semua fungsi hitung_imt, hitung_tdee, dll. ada di sini)
 # --- FUNGSI PERHITUNGAN GIZI ---
 
 def hitung_imt(berat_kg, tinggi_cm):
@@ -85,74 +72,37 @@ def hitung_makronutrien(tdee):
         hasil[nutrisi] = {"gram": round(gram), "kalori": round(kalori_nutrisi), "rasio": rasio * 100}
     return hasil
 
-SAVE_FILE = "last_food.json"
-
-def load_last_food():
-    if os.path.exists(SAVE_FILE):
-        with open(SAVE_FILE, "r") as f:
-            try:
-                data = json.load(f)
-                if isinstance(data, dict): return data
-            except Exception: pass
-    return {}
-
-def save_last_food(data):
-    with open(SAVE_FILE, "w") as f:
-        json.dump(data, f, indent=2)
-
-def pilih_acak_berbeda(kategori_list, last_list):
-    if not isinstance(last_list, list): last_list = []
-    available = [m for m in kategori_list if m not in last_list]
-    if len(available) < 3 and len(kategori_list) >= 3:
-        available = kategori_list.copy()
-    n = min(3, len(available))
-    if n == 0 and len(kategori_list) > 0:
-        available = kategori_list.copy()
-        n = min(3, len(available))
-    if n > 0:
-        return random.sample(available, n)
-    else:
-        return []
-
-def rekomendasikan_makanan(makro_target):
-    if not MAKANAN_DATABASE:
-        return {
-            "Protein": f"{makro_target.get('protein', {'gram': 0})['gram']} gram/hari → (Database Kosong)",
-            "Karbohidrat": f"{makro_target.get('karbohidrat', {'gram': 0})['gram']} gram/hari → (Database Kosong)",
-            "Lemak Sehat": f"{makro_target.get('lemak', {'gram': 0})['gram']} gram/hari → (Database Kosong)",
-            "Sayuran": "2 porsi/hari → (Database Kosong)",
-            "Buah": "2 porsi/hari → (Database Kosong)",
-        }
-        
-    last = load_last_food()
-    target_protein = makro_target['protein']['gram']
-    target_karbo = makro_target['karbohidrat']['gram']
-    target_lemak = makro_target['lemak']['gram']
-
-    protein_items = [m for m, v in MAKANAN_DATABASE.items() if v.get("jenis") and "Protein" in v["jenis"]]
-    karbo_items = [m for m, v in MAKANAN_DATABASE.items() if v.get("jenis") == "Karbohidrat"]
-    lemak_items = [m for m, v in MAKANAN_DATABASE.items() if v.get("jenis") == "Lemak Sehat"]
-    sayur_items = [m for m, v in MAKANAN_DATABASE.items() if v.get("jenis") == "Sayur"]
-    buah_items = [m for m, v in MAKANAN_DATABASE.items() if v.get("jenis") == "Buah"]
-
-    protein_final = pilih_acak_berbeda(protein_items, last.get("Protein", []))
-    karbo_final = pilih_acak_berbeda(karbo_items, last.get("Karbohidrat", []))
-    lemak_final = pilih_acak_berbeda(lemak_items, last.get("Lemak", []))
-    sayur_final = pilih_acak_berbeda(sayur_items, last.get("Sayur", []))
-    buah_final = pilih_acak_berbeda(buah_items, last.get("Buah", []))
-
-    save_last_food({
-        "Protein": protein_final, "Karbohidrat": karbo_final, "Lemak": lemak_final, 
-        "Sayur": sayur_final, "Buah": buah_final
-    })
+def rekomendasikan_makanan(makro_target, input_string):
+    """
+    Menghasilkan rekomendasi makanan yang deterministik (konsisten) 
+    berdasarkan input_string (semua input pengguna).
+    """
+    # 1. Buat Seed Unik dari semua input
+    seed_value = int(hashlib.sha1(input_string.encode('utf-8')).hexdigest(), 16) % (10**8)
+    random.seed(seed_value) 
 
     rekom = {}
-    rekom["Protein"] = f"{target_protein} gram/hari → {', '.join(protein_final)}"
-    rekom["Karbohidrat"] = f"{target_karbo} gram/hari → {', '.join(karbo_final)}"
-    rekom["Lemak Sehat"] = f"{target_lemak} gram/hari → {', '.join(lemak_final)}"
-    rekom["Sayuran"] = f"2 porsi/hari → {', '.join(sayur_final)}"
-    rekom["Buah"] = f"2 porsi/hari → {', '.join(buah_final)}"
+    
+    # Kunci untuk target makro
+    makro_keys = {
+        "Protein": makro_target['protein']['gram'], 
+        "Karbohidrat": makro_target['karbohidrat']['gram'], 
+        "Lemak Sehat": makro_target['lemak']['gram']
+    }
 
+    # 2. Lakukan Pemilihan Acak (tapi konsisten karena sudah di-seed)
+    for category, options in FOOD_OPTIONS.items():
+        n = min(3, len(options))
+        # random.sample akan menghasilkan hasil yang sama untuk seed yang sama
+        selected_items = random.sample(options, n)
+        
+        # 3. Format Output
+        if category in makro_keys:
+            target_gram = makro_keys[category]
+            rekom[category] = f"{target_gram} gram/hari → {', '.join(selected_items)}"
+        elif category == "Sayuran" or category == "Buah":
+            rekom[category] = f"2 porsi/hari → {', '.join(selected_items)}"
+            
     return rekom
 
 # --- LOGIKA FLASK API ---
@@ -182,6 +132,9 @@ def calculate_nutrition():
     if tinggi <= 100 or usia <= 10 or berat < 20:
         return jsonify({"error": "Input tinggi/usia/berat tidak valid."}), 400
 
+    # Gabungkan semua input menjadi string unik untuk seeding
+    input_string = f"{tinggi}-{berat}-{usia}-{jk}-{aktivitas}" 
+
     try:
         imt = hitung_imt(berat, tinggi)
         status, saran = klasifikasi_imt(imt)
@@ -189,7 +142,9 @@ def calculate_nutrition():
         bmr = hitung_bmr(bbi, tinggi, usia, jk)
         tdee = hitung_tdee(bmr, aktivitas)
         makro = hitung_makronutrien(tdee)
-        rekom = rekomendasikan_makanan(makro)
+        
+        # Kirim input_string ke fungsi rekomendasi
+        rekom = rekomendasikan_makanan(makro, input_string) 
     except Exception as e:
         print(f"Error saat perhitungan: {e}")
         return jsonify({"error": f"Terjadi kesalahan saat perhitungan gizi: {e}"}), 500
